@@ -83,15 +83,15 @@
   //Bind events for desk element: pointer drag, keyboard, double click for notes
   function bindDeskEvents($el, desk){
     let dragging = false;
+    let pressed = false;
     let start = {px:0, py:0, dx:0, dy:0};
+    const DRAG_THRESHOLD = 6;
 
     $el.on('pointerdown', function(e){
       e.preventDefault();
       const el = this;
-      el.setPointerCapture(e.originalEvent.pointerId);
-      dragging = true;
-      $el.addClass('dragging');
-      const wrap = getCanvasWrap();
+      try{ el.setPointerCapture(e.originalEvent.pointerId); }catch(_){ }
+      pressed = true;
       start.px = e.clientX;
       start.py = e.clientY;
       start.dx = parseInt($el.css('left'), 10) || 0;
@@ -99,32 +99,41 @@
     });
 
     $el.on('pointermove', function(e){
-      if(!dragging) return;
+      if(!pressed) return;
       const dx = e.clientX - start.px;
       const dy = e.clientY - start.py;
+      // start dragging only after a small threshold to avoid clicks being treated as drags
+      if(!dragging){
+        if(dx*dx + dy*dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
+        dragging = true;
+        $el.addClass('dragging');
+      }
       const nx = start.dx + dx;
       const ny = start.dy + dy;
       $el.css({ left: nx + 'px', top: ny + 'px' });
     });
 
     $el.on('pointerup pointercancel', function(e){
-      if(!dragging) return;
-      dragging = false;
-      try{ this.releasePointerCapture(e.originalEvent.pointerId); }catch(_){}
-      $el.removeClass('dragging');
-      // compute new percent and save
-      const wrap = getCanvasWrap();
-      const w = wrap.width();
-      const h = wrap.height();
-      const elW = $el.outerWidth();
-      const elH = $el.outerHeight();
-      let left = parseInt($el.css('left'),10) || 0;
-      let top = parseInt($el.css('top'),10) || 0;
-      left = AppHelpers.clamp(left, 0, Math.max(w - elW, 0));
-      top = AppHelpers.clamp(top, 0, Math.max(h - elH, 0));
-      desk.x = Math.round((left / Math.max(w - elW, 1)) * 100);
-      desk.y = Math.round((top / Math.max(h - elH, 1)) * 100);
-      saveAndRender();
+      // always release pointer capture if we obtained it
+      try{ this.releasePointerCapture(e.originalEvent.pointerId); }catch(_){ }
+      if(dragging){
+        dragging = false;
+        $el.removeClass('dragging');
+        // compute new percent and save
+        const wrap = getCanvasWrap();
+        const w = wrap.width();
+        const h = wrap.height();
+        const elW = $el.outerWidth();
+        const elH = $el.outerHeight();
+        let left = parseInt($el.css('left'),10) || 0;
+        let top = parseInt($el.css('top'),10) || 0;
+        left = AppHelpers.clamp(left, 0, Math.max(w - elW, 0));
+        top = AppHelpers.clamp(top, 0, Math.max(h - elH, 0));
+        desk.x = Math.round((left / Math.max(w - elW, 1)) * 100);
+        desk.y = Math.round((top / Math.max(h - elH, 1)) * 100);
+        saveAndRender();
+      }
+      pressed = false;
     });
 
     // keyboard support: focus, arrow keys to nudge, Enter to edit notes, Delete to remove
@@ -165,9 +174,42 @@
     });
 
     $el.on('click', function(e){
+      // do not open editor if user is dragging
+      if(dragging) return;
+
+      // select this desk and update visuals
       state.selectedId = desk.id;
       updateSelectedInfo();
+      // re-render so selection state is reflected
       renderDesks();
+
+      // find the freshly rendered element and replace the name with an input
+      const $fresh = getCanvas().find(`[data-id='${desk.id}']`);
+      if($fresh.find('.name-edit').length) return; // already editing
+      const $name = $fresh.find('.name');
+      const cur = desk.name || '';
+      // use the existing .input utility class for consistent styling
+      const $input = $('<input type="text" class="name-edit input" aria-label="Edit student name">').val(cur);
+      $name.empty().append($input);
+      $input.focus().select();
+
+      function commit(){
+        const val = ($input.val() || '').trim();
+        desk.name = val || 'Student';
+        saveAndRender();
+      }
+      function cancel(){
+        // restore rendering without committing
+        renderDesks();
+        updateSelectedInfo();
+      }
+
+      $input.on('keydown', function(ev){
+        if(ev.key === 'Enter'){ ev.preventDefault(); commit(); }
+        else if(ev.key === 'Escape'){ ev.preventDefault(); cancel(); }
+      });
+
+      $input.on('blur', function(){ commit(); });
     });
 
     $el.on('dblclick', function(e){
