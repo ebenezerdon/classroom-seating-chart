@@ -7,6 +7,20 @@
   <meta name="description" content="Interactive classroom seating chart with drag-and-drop desks and editable notes.">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="styles/main.css">
+
+<style type="text/tailwindcss" data-teda="tailwind-apply">
+@layer components {
+/* from styles/main.css */
+/* Tailwind friendly button utilities defined as CSS classes for clarity */
+.btn-primary{@apply bg-indigo-600 text-white px-3 py-1.5 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300;}
+.btn-secondary{@apply bg-white border border-gray-200 px-3 py-1 rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-100;}
+.btn-outline{@apply bg-white border border-gray-200 px-3 py-1 rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none;}
+.btn-danger{@apply bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 focus:outline-none;}
+.btn-danger.small{@apply px-2 py-0.5 text-xs;}
+.btn-outline.small{@apply px-2 py-0.5 text-xs;}
+.input{@apply border border-gray-200 px-3 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-100;}
+}
+</style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased">
   <header class="bg-white shadow-sm">
